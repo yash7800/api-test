@@ -11,27 +11,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Install Node and Rsync Files
+      - name: Rsync files to server
         run: |
-          ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} "mkdir -p ~/app"
-          rsync -avz --delete . ${{ secrets.USERNAME }}@${{ secrets.HOST }}:~/app
+          rsync -avz --delete ./ ${{ secrets.USERNAME }}@${{ secrets.HOST }}:/home/${{ secrets.USERNAME }}/app
 
-      - name: Install dependencies and start app
+      - name: Install dependencies & start app
         run: |
-          ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
-            cd ~/app
-            sudo apt-get update
-            sudo apt-get install -y nodejs npm
+          ssh -o StrictHostKeyChecking=no ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
+            cd /home/${{ secrets.USERNAME }}/app
             npm install
             sudo fuser -k 80/tcp || true
-            sudo nohup npm start > app.log 2>&1 &
+            sudo PORT=80 npm start &
           EOF
